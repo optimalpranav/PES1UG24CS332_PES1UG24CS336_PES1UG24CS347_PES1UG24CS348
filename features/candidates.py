@@ -148,4 +148,51 @@ def build_candidates(trip, with_labels=True):
 
     if with_labels and trip["route"] is not None:
         true_arc = align_route(px, py, trip["route"]["arc_id"].to_numpy(), geom)
-        df["true_arc"] =
+        df["true_arc"] = true_arc[df["obs_idx"].to_numpy()]
+        df["label"] = (df["arc_id"] == df["true_arc"]).astype(int)
+    return df.sort_values(["obs_idx", "dist_rank"]).reset_index(drop=True)
+
+
+def true_arcs_for_trip(trip):
+    """Per-point reference arc (used server-side by the API for accuracy)."""
+    track = trip["track"].drop_duplicates("t").sort_values("t").reset_index(drop=True)
+    px, py = lonlat_to_xy(track["lon"].to_numpy(), track["lat"].to_numpy())
+    geom = arc_geometry(trip["nodes"], trip["arcs"])
+    return align_route(px, py, trip["route"]["arc_id"].to_numpy(), geom)
+
+
+def build_partition(partition):
+    tables, miss = [], []
+    
+        trip = load_trip(trip_dir)
+        df = build_candidates(trip)
+        n_obs = trip["track"]["t"].nunique()
+        hit = df.groupby("obs_idx")["label"].max()
+        miss.append((trip["trip_id"], n_obs, len(hit), 1 - hit.sum() / n_obs))
+        tables.append(df)
+        print(f"{partition} {trip['trip_id']}: {len(df)} rows, miss rate {miss[-1][3]:.3f}")
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    pd.concat(tables).to_parquet(OUT_DIR / f"{partition}.parquet", index=False)
+    return pd.DataFrame(miss, columns=["trip_id", "n_obs", "n_obs_with_cands", "candidate_miss_rate"])
+
+
+def make_folds(train_ids):
+    rng = np.random.default_rng(SEED)
+    ids = np.array(sorted(train_ids))
+    rng.shuffle(ids)
+    return pd.DataFrame({"trip_id": ids, "fold": np.arange(len(ids)) % N_FOLDS})
+
+
+if __name__ == "__main__":
+    parts = sys.argv[1:] or ["train", "student_test"]
+    Path("results").mkdir(exist_ok=True)
+    all_miss = []
+    for p in parts:
+        m = build_partition(p)
+        m.insert(0, "partition", p)
+        all_miss.append(m)
+    miss = pd.concat(all_miss)
+    miss.to_csv("results/candidate_miss_rate.csv", index=False)
+    print(miss.groupby("partition")["candidate_miss_rate"].mean())
+    if "train" in parts:
+        make_folds(miss.loc[miss.partition == "train", "trip_id"]).to_csv("results/folds.csv", index=False)
