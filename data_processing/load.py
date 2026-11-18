@@ -35,7 +35,7 @@ def list_trips(partition_dir):
 
 if __name__ == "__main__":
     import sys 
-    partition = sys.argv[1] if len(sys.argv) > 1 else "Student folder/train"
+    partition = sys.argv[1] if len(sys.argv) > 1 else "data/train"
     trips = list_trips(partition)
     print(f"Found {len(trips)} trips in {partition}")
     t = load_trip(trips[0])
