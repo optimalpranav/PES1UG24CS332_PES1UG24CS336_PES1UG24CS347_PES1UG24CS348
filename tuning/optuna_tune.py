@@ -10,8 +10,8 @@ Outputs: tuning/trials.csv, tuning/best_params.json, models/saved/final_model.jo
 import argparse
 import json
 import time
-
-import joblib
+import numpy as np  
+import joblib 
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -27,12 +27,16 @@ def make_model(p):
     return HistGradientBoostingClassifier(random_state=SEED, **p)
 
 
-def cv_score(params, train):
+def cv_score(params, train, trial=None):
     scores = []
-    for k in sorted(train["fold"].unique()):
+    for i, k in enumerate(sorted(train["fold"].unique())):
         tr, va = train[train.fold != k], train[train.fold == k]
         m = make_model(params).fit(tr[FEATURE_COLS].to_numpy(), tr["label"])
         scores.append(evaluate(m, va)[0])
+        if trial is not None:
+            trial.report(float(np.mean([s["top1_acc"] for s in scores])), step=i)
+            if trial.should_prune():
+                raise optuna.TrialPruned()
     return pd.DataFrame(scores).mean()
 
 
@@ -49,12 +53,19 @@ def main(n_trials):
             "min_samples_leaf": trial.suggest_int("min_samples_leaf", 10, 200, log=True),
             "l2_regularization": trial.suggest_float("l2_regularization", 1e-4, 10.0, log=True),
         }
-        s = cv_score(params, train)
+        s = cv_score(params, train, trial)
         trial.set_user_attr("cv_macro_f1", float(s.macro_f1))
         return float(s.top1_acc)
 
     t0 = time.perf_counter()
-    study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=SEED))
+    study = optuna.create_study(
+        direction="maximize",
+        sampler=optuna.samplers.TPESampler(seed=SEED),
+        pruner=optuna.pruners.MedianPruner(n_startup_trials=5, n_warmup_steps=1),
+        storage="sqlite:///tuning/optuna_study.db",
+        study_name="histgb_top1",
+        load_if_exists=True,
+    )
     study.optimize(objective, n_trials=n_trials)
     tune_s = time.perf_counter() - t0
     study.trials_dataframe().to_csv("tuning/trials.csv", index=False)
