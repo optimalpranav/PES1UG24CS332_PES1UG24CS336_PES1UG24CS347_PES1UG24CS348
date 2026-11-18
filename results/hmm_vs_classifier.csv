@@ -1,0 +1,3 @@
+method,top1_acc,route_continuity
+classifier only,0.8521920668058455,0.7658171743409491
+classifier + HMM (beta=2.0),0.9056367432150313,0.9066817884570888
