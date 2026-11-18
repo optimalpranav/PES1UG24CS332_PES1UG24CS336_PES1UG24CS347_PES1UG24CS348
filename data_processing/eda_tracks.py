@@ -14,11 +14,7 @@ import matplotlib.pyplot as plt
 from data_processing.load import load_trip, list_trips
 from utils.geo import projected_distance_m
 
-<<<<<<< HEAD
 DATA_DIR = Path("data")
-=======
-DATA_DIR = Path("..") / "ml hackethon" / "student folder"
->>>>>>> 71d822d08dceacb0bcf68baf163ce14de093a6ef
 PARTITIONS = ["train", "student_test"]
 JUMP_SPEED_MS = 50.0   # > 180 km/h between consecutive fixes = treat as GPS jump
 BIG_GAP_S = 10.0       # time gap considered "large"
