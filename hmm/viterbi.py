@@ -18,7 +18,7 @@ import heapq
 from collections import defaultdict
 
 import numpy as np
-
+import pandas as pd
 from features.candidates import arc_geometry
 from utils.geo import lonlat_to_xy
 
@@ -140,3 +140,23 @@ def viterbi_trip(cands, prob, track, graph, beta=10.0, emission_weight=1.0,
         bp = int(backptr[k][j])
         j = bp if bp >= 0 else int(np.argmax(scores[k - 1]))
     return dict(zip(obs, path.tolist())), breaks
+
+def _best_beta(default=10.0):
+    """Beta chosen by hmm/run_hmm.py on student_test (results/hmm_beta_search.csv)."""
+    try:
+        s = pd.read_csv("results/hmm_beta_search.csv")
+        return float(s.loc[s["hmm_top1_acc"].idxmax(), "beta"])
+    except (FileNotFoundError, KeyError, ValueError):
+        return default
+
+
+BETA = _best_beta()
+
+
+def decode(cands, trip):
+    """Interface used by api/decoder.py.
+    cands: candidate rows of one trip with a 'prob' column; trip: track/nodes/arcs (no route).
+    Returns pd.Series index=obs_idx, value=decoded arc_id."""
+    graph = RoadGraph(trip["nodes"], trip["arcs"])
+    mapping, _ = viterbi_trip(cands, cands["prob"].to_numpy(), trip["track"], graph, beta=BETA)
+    return pd.Series(mapping).sort_index()
