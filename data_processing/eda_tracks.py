@@ -27,7 +27,7 @@ def inventory():
     for part in PARTITIONS:
         for trip_dir in list_trips(DATA_DIR / part):
             tid = trip_dir.name
-            row = {"partition": part, "trip_id": tid}
+            row: dict[str, object] = {"partition": part, "trip_id": tid}
             for ext in EXTS:
                 f = trip_dir / f"{tid}.{ext}"
                 row[f"has_{ext}"] = f.exists()

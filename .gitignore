@@ -1,9 +1,12 @@
 # Dataset (kept locally, never pushed)
 data/
 
-# Python
+#Python
 __pycache__/
 *.pyc
+models/saved/KNN.joblib
+models/saved/RandomForest.joblib
+features/out/
 
 # Virtual environments
 venv/
