@@ -10,7 +10,7 @@ def load_trip(trip_dir, load_route=True):
 
     track = _read(trip_dir / f"{trip_id}.track", ["lon", "lat", "t"], dtypes={"lon": float, "lat": float, "t": float})
 
-    nodes = _read(trip_dir / f"{trip_id}.nodes", ["lon", "lat", "t"], dtypes={"lon": float, "lat": float, "t": float})
+    nodes = _read(trip_dir / f"{trip_id}.nodes", ["lon", "lat"], dtypes={"lon": float, "lat": float})
     nodes.index.name = "node_id"
 
     arcs = _read(trip_dir / f"{trip_id}.arcs", ["from_node", "to_node"], dtypes={"from_node": int, "to_node": int})
